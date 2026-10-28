@@ -1,10 +1,34 @@
-# GitHub Notes Skill and MCP
+# Personal GitHub Skills
+
+复用原 `github-notes-skill` 仓库作为个人 Skill 库，保留仓库名与笔记 Skill 的既有路径和 MCP。
+
+| Skill | 用途 | 私有数据位置 |
+| --- | --- | --- |
+| [github-notes](skills/github-notes/SKILL.md) | 分类保存和检索笔记，支持本机 MCP | 用户独立选择的私有笔记仓库 |
+| [github-resources](skills/github-resources/SKILL.md) | 检索、维护并使用供应商、模型、数据库、Redis、邮件和服务器配置 | 用户的私有资源仓库，默认 `当前账号/personal-resources` |
+
+本仓库公开，只包含通用代码与虚构示例。真实资源、密钥、个人仓库绑定和 gh 授权不进入本仓库。
+
+默认 `python3 install.py` 安装两个 Skill，并注册原笔记 MCP。仅安装资源 Skill 不需要 Codex CLI，也不改 MCP：
+
+```sh
+python3 install.py --skill github-resources --skip-mcp
+gh auth login --hostname github.com --git-protocol https --web
+```
+
+新开聊天后可以说“查一下我的百炼配置”或“使用 $github-resources 查找测试数据库”。默认仓库只需按账号约定存在；自定义仓库用资源 CLI 的 `bind owner/repo`。资源 CLI 会拒绝公开仓库，查询默认脱敏；真实凭据按需导出到受保护的本地文件。每台设备独立授权，资源不做后台同步，不运行 Actions，不部署网站。
+
+首次建库、配置格式与命令见 [资源格式与维护](skills/github-resources/references/catalog.md)。资源工具需要私有仓库根目录已有 `catalog.json`，格式为 `{"version":1,"resources":[]}`。当前不提供自动建库命令；可由授权的 `gh repo create --private` 建立并提交初始文件。
+
+下面保留原笔记功能与安装说明。
+
+## GitHub Notes Skill and MCP
 
 用独立 GitHub 仓库保存调研和开发笔记。包含一个可全局安装的 Codex Skill，以及一个复用 GitHub CLI 授权的轻量笔记 MCP。
 
 首次使用检查授权、分析候选仓库、选择并绑定笔记目录；没有合适仓库时按用户要求创建私有仓库。后续由助手自动选择分类与标签，按内容补充流程图、表格或图片，再保存、检索和更新笔记。通用源码可公开分享，每个用户独立授权并使用自己的笔记库。
 
-当前版本：**1.1.0**。
+笔记 Skill 当前版本：**1.1.0**。个人资源 Skill 的验收记录见 [VALIDATION.md](VALIDATION.md)。
 
 ## 快速安装
 

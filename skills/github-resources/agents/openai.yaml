@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub 个人资源"
+  short_description: "跨项目检索并使用私有 GitHub 中的服务凭据、模型与部署配置"
+  default_prompt: "使用 $github-resources 查找我已有的服务资源，并按当前项目完成配置。"
