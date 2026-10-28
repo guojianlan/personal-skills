@@ -1,4 +1,6 @@
 interface:
-  display_name: "GitHub 个人资源"
-  short_description: "跨项目检索并使用私有 GitHub 中的服务凭据、模型与部署配置"
-  default_prompt: "使用 $github-resources 查找我已有的服务资源，并按当前项目完成配置。"
+  display_name: "个人资源默认选用"
+  short_description: "开发需要线上能力时先查个人资源，自动选用、说明理由并沉淀已验证经验"
+  default_prompt: "使用 $github-resources 为当前功能选择已有资源，说明理由、完成接入并记录验证经验。"
+policy:
+  allow_implicit_invocation: true

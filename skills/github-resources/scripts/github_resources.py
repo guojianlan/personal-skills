@@ -2,6 +2,7 @@
 """Private personal resource catalog over gh; credentials never appear by default."""
 import argparse
 import base64
+import copy
 import json
 import os
 from pathlib import Path
@@ -147,6 +148,73 @@ def summary(item, info):
     return value
 
 
+def capability_overview(data, info):
+    groups = {}
+    for item in data["resources"]:
+        metadata = summary(item, info)
+        metadata.update({"config": item.get("config", {}), "docs": item.get("docs", []),
+                         "verification": item.get("verification", {})})
+        for capability in item.get("capabilities", []):
+            groups.setdefault(capability, []).append(metadata)
+    return groups
+
+
+def merge_metadata(old, patch):
+    """Merge observations without replacing unrelated configuration or credentials."""
+    if isinstance(old, dict) and isinstance(patch, dict):
+        result = copy.deepcopy(old)
+        for key, value in patch.items():
+            result[key] = merge_metadata(result[key], value) if key in result else copy.deepcopy(value)
+        return result
+    if isinstance(old, list) and isinstance(patch, list):
+        result = copy.deepcopy(old)
+        for value in patch:
+            if value not in result:
+                result.append(copy.deepcopy(value))
+        return result
+    return copy.deepcopy(patch)
+
+
+def record_metadata(data, resource_id, patch):
+    if not isinstance(patch, dict) or not patch or set(patch) - {"capabilities", "docs", "verification", "config"}:
+        raise ResourceError("record accepts capability, documentation, verification and integration metadata only.")
+    if "config" in patch and (not isinstance(patch["config"], dict) or set(patch["config"]) - {
+            "models", "model_discovery", "integration", "observed_limits", "recommendations", "preferred_for"}):
+        raise ResourceError("record cannot change endpoints, defaults or credentials; maintain them explicitly with put.")
+    if "verification" in patch and not isinstance(patch["verification"], dict):
+        raise ResourceError("Verification evidence must be an object.")
+    if "docs" in patch and (not isinstance(patch["docs"], list) or any(
+            not isinstance(v, dict) or set(v) - {"title", "url"} or
+            not isinstance(v.get("title"), str) or not isinstance(v.get("url"), str)
+            for v in patch["docs"])):
+        raise ResourceError("Documentation must contain title and URL records.")
+    validate_config(patch)
+    # Keep known credentials out of observation text, including values under innocent field names.
+    encoded = json.dumps(patch, ensure_ascii=False)
+    for resource in data["resources"]:
+        for secret in resource.get("secrets", {}).values():
+            if len(secret) >= 8 and secret in encoded:
+                raise ResourceError("A credential was detected in metadata; it was not saved.")
+    item = select(data, resource_id)
+    updated = merge_metadata(item, patch)
+    validate_resource(updated)
+    return updated
+
+
+def save_catalog(info, data, sha, resource_id):
+    validate_catalog(data)
+    content = (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode()
+    private_repo(info["full_name"])
+    result = api("repos/" + info["full_name"] + "/contents/catalog.json", "PUT", {
+        "message": "chore: maintain personal resource " + resource_id, "branch": info["default_branch"],
+        "sha": sha, "content": base64.b64encode(content).decode()})
+    commit = result["commit"]["sha"]
+    verified, _ = read_catalog(info, commit)
+    if verified != data:
+        raise ResourceError("Write completed but verification failed; inspect remote state before retrying.")
+    return commit
+
+
 def select(data, resource_id):
     matches = [item for item in data["resources"] if item["id"] == resource_id]
     if len(matches) != 1:
@@ -220,6 +288,9 @@ def run(args):
     base = {"repository": info["full_name"], "account": user, "private": True, "catalog_sha": sha}
     if args.command == "status":
         return dict(base, count=len(data["resources"]), url=info["html_url"])
+    if args.command == "capabilities":
+        return dict(base, capabilities=capability_overview(data, info), resource_count=len(data["resources"]),
+                    scope="complete catalog metadata; verification is evidence, not a guarantee of current availability")
     if args.command in {"list", "search"}:
         items = [summary(item, info) for item in data["resources"]]
         if args.command == "search":
@@ -237,13 +308,20 @@ def run(args):
         content = env_bytes(item, mapping)
         write_private(args.output, content, overwrite=args.overwrite)
         return dict(base, resource_id=item["id"], output=str(Path(args.output).absolute()), variables=list(mapping), values_printed=False)
-    if args.command == "put":
+    if args.command in {"put", "record"}:
         if not info.get("permissions", {}).get("push"):
             raise ResourceError("Repository write access is required.")
         raw = sys.stdin.read(MAX_BYTES + 1) if args.file == "-" else Path(args.file).read_text()
         if len(raw.encode()) > MAX_BYTES:
             raise ResourceError("Resource input is too large.")
         item = json.loads(raw)
+        if args.command == "record":
+            if args.expected_sha != sha:
+                raise ResourceError("Recording evidence requires the current catalog SHA.")
+            old = select(data, args.id)
+            item = record_metadata(data, args.id, item)
+            if item == old:
+                return dict(base, resource_id=args.id, changed=False, verified=True)
         validate_resource(item)
         old = next((i for i in data["resources"] if i["id"] == item["id"]), None)
         if old and args.expected_sha != sha:
@@ -254,17 +332,7 @@ def run(args):
             data["resources"][data["resources"].index(old)] = item
         else:
             data["resources"].append(item)
-        validate_catalog(data)
-        content = (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode()
-        # Recheck visibility immediately before writing, then use GitHub's SHA compare-and-swap.
-        private_repo(info["full_name"])
-        result = api("repos/" + info["full_name"] + "/contents/catalog.json", "PUT", {
-            "message": "chore: maintain personal resource " + item["id"], "branch": info["default_branch"],
-            "sha": sha, "content": base64.b64encode(content).decode()})
-        commit = result["commit"]["sha"]
-        verified, _ = read_catalog(info, commit)
-        if verified != data:
-            raise ResourceError("Write completed but verification failed; inspect remote state before retrying.")
+        commit = save_catalog(info, data, sha, item["id"])
         return dict(base, resource_id=item["id"], commit=commit, verified=True)
     raise ResourceError("Unknown command.")
 
@@ -275,6 +343,7 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("status")
     commands.add_parser("list")
+    commands.add_parser("capabilities")
     p = commands.add_parser("bind")
     p.add_argument("repository")
     p = commands.add_parser("search")
@@ -289,6 +358,10 @@ def main():
     p = commands.add_parser("put")
     p.add_argument("--file", required=True, help="Resource JSON file, or - for stdin")
     p.add_argument("--expected-sha")
+    p = commands.add_parser("record")
+    p.add_argument("id")
+    p.add_argument("--file", required=True, help="Metadata JSON patch file, or - for stdin")
+    p.add_argument("--expected-sha", required=True)
     args = parser.parse_args()
     try:
         print(json.dumps(run(args), ensure_ascii=False, indent=2))

@@ -78,6 +78,56 @@ class ResourceTests(unittest.TestCase):
     def test_search_does_not_match_secret_values(self):
         self.assertEqual(r.run(self.args("search", query="test-only-private-value"))["count"], 0)
 
+    def test_capability_overview_uses_fixed_repository_and_no_markdown_scan(self):
+        result = r.run(self.args("capabilities"))
+        self.assertEqual(result["capabilities"]["llm"][0]["config"]["default_model"], "example")
+        self.assertNotIn("test-only-private-value", json.dumps(result))
+        self.assertEqual(len(self.gh.calls), 3)
+        self.assertFalse(any(".md" in path or "user/repos" in path for path, _ in self.gh.calls))
+
+    def record(self, patch_data, sha="sha-one"):
+        path = self.root / "evidence.json"
+        path.write_text(json.dumps(patch_data))
+        return r.run(self.args("record", id="example-dev", file=str(path), expected_sha=sha))
+
+    def test_record_preserves_credentials_defaults_and_existing_evidence(self):
+        self.gh.data["resources"][0]["verification"] = {"status": "not-verified", "observations": [{"kind": "configuration"}]}
+        before = copy.deepcopy(self.gh.data["resources"][0])
+        result = self.record({"config": {"integration": {"protocol": "compatible-chat"}},
+                              "verification": {"observations": [{"kind": "documentation", "outcome": "documented"}]}})
+        after = self.gh.data["resources"][0]
+        self.assertTrue(result["verified"])
+        self.assertEqual(after["secrets"], before["secrets"])
+        self.assertEqual(after["config"]["base_url"], before["config"]["base_url"])
+        self.assertEqual(after["config"]["default_model"], before["config"]["default_model"])
+        self.assertEqual(after["verification"]["status"], "not-verified")
+        self.assertEqual(len(after["verification"]["observations"]), 2)
+
+    def test_record_rejects_credentials_endpoints_and_default_changes(self):
+        for metadata in ({"secrets": {"api_key": "replacement"}}, {"config": {"base_url": "https://other.example"}},
+                         {"config": {"default_model": "replacement"}}, {"id": "replacement"}):
+            with self.assertRaises(r.ResourceError):
+                self.record(metadata)
+        self.assertFalse(any(method == "PUT" for _, method in self.gh.calls))
+
+    def test_record_rejects_known_credential_in_observation(self):
+        with self.assertRaises(r.ResourceError):
+            self.record({"verification": {"observations": [{"summary": "test-only-private-value"}]}})
+        self.assertFalse(any(method == "PUT" for _, method in self.gh.calls))
+
+    def test_record_stale_version_is_rejected(self):
+        with self.assertRaises(r.ResourceError):
+            self.record({"capabilities": ["vision"]}, sha="stale")
+        self.assertFalse(any(method == "PUT" for _, method in self.gh.calls))
+
+    def test_record_deduplicates_evidence_and_retries_without_new_commit(self):
+        patch_data = {"capabilities": ["vision", "vision"], "verification": {"observations": [{"kind": "documentation"}]}}
+        self.record(patch_data)
+        self.assertEqual(self.gh.data["resources"][0]["capabilities"], ["llm", "vision"])
+        again = self.record(patch_data, sha="sha-two")
+        self.assertFalse(again["changed"])
+        self.assertEqual(sum(method == "PUT" for _, method in self.gh.calls), 1)
+
     def test_show_masks_all_secrets(self):
         result = r.run(self.args("show", id="example-dev"))
         self.assertEqual(set(result["resource"]["secrets"].values()), {"[REDACTED]"})

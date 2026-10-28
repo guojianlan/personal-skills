@@ -16,7 +16,7 @@ python3 install.py --skill github-resources
 gh auth login --hostname github.com --git-protocol https --web
 ```
 
-新开聊天后可以说“查一下我的百炼配置”或“使用 $github-resources 查找测试数据库”。默认仓库只需按账号约定存在；自定义仓库用资源 CLI 的 `bind owner/repo`。资源 CLI 会拒绝公开仓库，查询默认脱敏；真实凭据按需导出到受保护的本地文件。每台设备独立授权，资源不做后台同步，不运行 Actions，不部署网站。
+新开聊天后，开发任务需要线上能力就自动查个人资源，不需要说“百炼”或 Skill 名称。用户未指定来源时按任务选用已有服务，简述理由后继续；实际使用后自动记录有证据的能力与接入经验。用户明确指定来源时遵从其指定。默认仓库只需按账号约定存在；自定义仓库用资源 CLI 的 `bind owner/repo`。资源 CLI 会拒绝公开仓库，查询默认脱敏；真实凭据按需导出到受保护的本地文件。每台设备独立授权；自动维护在实际任务中执行，没有后台定时扫描、Actions 或网站部署。
 
 首次建库、配置格式与命令见 [资源格式与维护](skills/github-resources/references/catalog.md)。资源工具需要私有仓库根目录已有 `catalog.json`，格式为 `{"version":1,"resources":[]}`。当前不提供自动建库命令；可由授权的 `gh repo create --private` 建立并提交初始文件。
 

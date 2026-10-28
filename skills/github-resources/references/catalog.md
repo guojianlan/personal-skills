@@ -45,3 +45,38 @@ python3 <skill>/scripts/github_resources.py put --file /absolute/path/resource.j
 导出只支持字符串叶子字段；映射路径以 `config.` 或 `secrets.` 开头。例如数据库映射 `{"DATABASE_URL":"secrets.connection_url"}`。已有输出文件不覆盖，明确授权后才能使用 `--overwrite`。POSIX 权限为 0600；Windows 需依赖用户目录 ACL，工具不配置系统 ACL。不要将导出文件当 shell 脚本执行或直接提交 Git。
 
 本工具本身不提供加密。明文存在 Git 历史中；未来改用加密不会自动清除旧版本，需要另行迁移和必要的凭据轮换。
+
+## 按任务自动选用与自动记录
+
+`capabilities` 一次返回按能力分组的完整元数据，包括配置、官方文档、适用环境与验证状态，不输出 secrets，也不搜索其他仓库或 Markdown。开发需要外部依赖而用户未指定时先使用此入口；已有项目契约和用户明确选择优先，不为无关编辑强行接服务。
+
+任务中得到新事实后，自动记录到当前资源，无需用户再次要求归档：
+
+```sh
+python3 <skill>/scripts/github_resources.py record <准确资源ID> \
+  --file /absolute/path/evidence.json --expected-sha <最新catalog_sha>
+```
+
+输入是元数据补丁，例如：
+
+```json
+{
+  "config": {
+    "integration": {
+      "dotenv_mapping": [
+        {"variable": "LLM_API_KEY", "source": "secrets.api_key"},
+        {"variable": "LLM_BASE_URL", "source": "config.base_url"}
+      ]
+    }
+  },
+  "verification": {
+    "observations": [
+      {"kind": "configuration", "outcome": "configured", "summary": "dotenv 加载检查通过，未调用供应商接口", "source": "本次实际配置检查", "observed_at": "2026-10-28"}
+    ]
+  }
+}
+```
+
+`record` 只接受 `capabilities/docs/verification/config`；其中 config 只允许 `models/model_discovery/integration/observed_limits/recommendations/preferred_for`。对象合并、列表去重追加，凭据与无关字段保留。不能通过此入口修改端点、默认模型、身份、密钥；已知秘密出现在元数据中会拒绝保存。没有变化不创建提交。不要把完整脱敏资源当成 put 输入。
+
+证据要区分 documented / discovered / configured / call-passed / failed；示例仅是格式，不能复制后声称真实发生。记录调用成功必须有本次或可核对的真实调用证据，不能只凭文档或 Key 存在。验证状态的含义和来源由调用方负责维护；工具不会替你调用供应商或证明模型可用。更新模型建议不等于切换默认设置，自动沉淀不等于后台升级、购买服务或生产变更授权。
