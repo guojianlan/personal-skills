@@ -5,8 +5,8 @@
 ## 安装
 
 ```sh
-git clone https://github.com/guojianlan/github-notes-skill.git
-cd github-notes-skill
+git clone https://github.com/guojianlan/personal-skills.git
+cd personal-skills
 python3 install.py
 ```
 

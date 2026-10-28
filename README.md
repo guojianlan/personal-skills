@@ -1,6 +1,6 @@
 # Personal GitHub Skills
 
-复用原 `github-notes-skill` 仓库作为个人 Skill 库，保留仓库名与笔记 Skill 的既有路径和 MCP。
+仓库由 `github-notes-skill` 更名为 `personal-skills`，统一维护个人 Skill；笔记 Skill 的既有路径和 MCP 名称保持不变。
 
 | Skill | 用途 | 私有数据位置 |
 | --- | --- | --- |
@@ -9,10 +9,10 @@
 
 本仓库公开，只包含通用代码与虚构示例。真实资源、密钥、个人仓库绑定和 gh 授权不进入本仓库。
 
-默认 `python3 install.py` 安装两个 Skill，并注册原笔记 MCP。仅安装资源 Skill 不需要 Codex CLI，也不改 MCP：
+默认 `python3 install.py` 安装两个 Skill，并注册原笔记 MCP。仅安装资源 Skill 不需要 Codex CLI，也不改 MCP，因此不必额外添加 `--skip-mcp`：
 
 ```sh
-python3 install.py --skill github-resources --skip-mcp
+python3 install.py --skill github-resources
 gh auth login --hostname github.com --git-protocol https --web
 ```
 
@@ -35,8 +35,8 @@ gh auth login --hostname github.com --git-protocol https --web
 准备 Python 3.9+、GitHub CLI 和 Codex CLI：
 
 ```sh
-git clone https://github.com/guojianlan/github-notes-skill.git
-cd github-notes-skill
+git clone https://github.com/guojianlan/personal-skills.git
+cd personal-skills
 python3 install.py
 gh auth login --hostname github.com --git-protocol https --web
 ```

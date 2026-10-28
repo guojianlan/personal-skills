@@ -13,7 +13,7 @@ import sys
 def install():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skills-dir", type=Path, help="Defaults to CODEX_HOME/skills or ~/.codex/skills")
-    parser.add_argument("--skip-mcp", action="store_true", help="Install only the Skill")
+    parser.add_argument("--skip-mcp", action="store_true", help="Skip optional github-notes MCP registration")
     parser.add_argument("--skill", action="append", choices=["github-notes", "github-resources"],
                         help="Install selected Skill(s); defaults to both")
     args = parser.parse_args()

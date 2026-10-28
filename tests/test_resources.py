@@ -184,7 +184,7 @@ class ResourceTests(unittest.TestCase):
         notes = skills / "github-notes"
         notes.mkdir(parents=True)
         (notes / "keep").write_text("preserve")
-        result = subprocess.run([sys.executable, str(ROOT / "install.py"), "--skill", "github-resources", "--skip-mcp", "--skills-dir", str(skills)],
+        result = subprocess.run([sys.executable, str(ROOT / "install.py"), "--skill", "github-resources", "--skills-dir", str(skills)],
                                 env=dict(os.environ, PATH=str(bin_dir)), capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(json.loads(result.stdout)["mcp_registered"])
