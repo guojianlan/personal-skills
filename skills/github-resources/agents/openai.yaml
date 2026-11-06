@@ -1,6 +1,6 @@
 interface:
-  display_name: "个人资源默认选用"
-  short_description: "开发需要线上能力时先查个人资源，自动选用、说明理由并沉淀已验证经验"
-  default_prompt: "使用 $github-resources 为当前功能选择已有资源，说明理由、完成接入并记录验证经验。"
+  display_name: "个人资源按需补充"
+  short_description: "先检查并验证项目配置，缺失或确认不可用且允许替代时再选个人资源"
+  default_prompt: "使用 $github-resources，先检查并验证当前项目配置，仅在缺失或确认不可用且允许替代时选择库内资源，完成接入并记录验证经验。"
 policy:
   allow_implicit_invocation: true
